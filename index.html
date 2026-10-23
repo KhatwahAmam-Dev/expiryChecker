@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Expiry Checker - AM024</title>
+<meta name="theme-color" content="#2563eb" />
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRXhwaXJ5IENoZWNrZXIiLCJzaG9ydF9uYW1lIjoiRXhwaXJ5Iiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiNmZmZmZmYiLCJ0aGVtZV9jb2xvciI6IiMyNTYzZWIifQ==" />
+
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fb; color: #0f172a; }
+  body { min-height: 100vh; padding-bottom: 90px; }
+  .hidden { display: none !important; }
+  .container { max-width: 720px; margin: 0 auto; padding: 16px; }
+
+  /* Login */
+  .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
+  .login-card { background: #fff; padding: 32px 24px; border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); width: 100%; max-width: 380px; }
+  .login-card h1 { margin: 0 0 8px; font-size: 22px; color: #1e293b; }
+  .login-card p { margin: 0 0 24px; color: #64748b; font-size: 14px; }
+  .login-card input { width: 100%; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 15px; margin-bottom: 12px; background: #f8fafc; }
+  .login-card input:focus { outline: none; border-color: #2563eb; background: #fff; }
+  .btn-primary { width: 100%; padding: 13px; background: #2563eb; color: #fff; border: none; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; }
+  .btn-primary:active { background: #1e40af; }
+
+  /* Header */
+  .app-header { position: sticky; top: 0; z-index: 50; background: #fff; border-bottom: 1px solid #e2e8f0; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .app-header .brand { font-weight: 700; font-size: 15px; color: #2563eb; }
+  .app-header .user-tag { font-size: 12px; color: #64748b; }
+  .app-header .user-tag b { color: #0f172a; }
+  .app-header .logout { font-size: 12px; color: #ef4444; background: none; border: none; cursor: pointer; padding: 6px 8px; }
+
+  /* Info bar */
+  .info-bar { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px; margin-bottom: 14px; font-size: 13px; color: #1e40af; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .info-bar .chip { background: #2563eb; color: #fff; padding: 3px 10px; border-radius: 999px; font-weight: 600; font-size: 12px; }
+
+  /* Input form */
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+  .field input { width: 100%; padding: 11px 13px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 15px; background: #f8fafc; }
+  .field input:focus { outline: none; border-color: #2563eb; background: #fff; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 16px; border-radius: 10px; font-weight: 600; font-size: 14px; border: none; cursor: pointer; transition: transform .05s; }
+  .btn:active { transform: scale(0.97); }
+  .btn-blue { background: #2563eb; color: #fff; }
+  .btn-green { background: #16a34a; color: #fff; }
+  .btn-orange { background: #ea580c; color: #fff; }
+  .btn-red { background: #dc2626; color: #fff; }
+  .btn-gray { background: #e2e8f0; color: #334155; }
+  .btn-block { width: 100%; }
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Scan area */
+  #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; }
+  #reader video { border-radius: 12px !important; }
+
+  /* Product result card */
+  .result-card { background: #fff; border: 2px solid #2563eb; border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .result-card.warn { border-color: #ea580c; background: #fff7ed; }
+  .result-card.danger { border-color: #dc2626; background: #fef2f2; }
+  .result-card .prod-name { font-weight: 700; font-size: 15px; margin-bottom: 6px; color: #0f172a; }
+  .result-card .meta { font-size: 13px; color: #475569; margin-bottom: 4px; }
+  .result-card .meta b { color: #0f172a; }
+  .result-card svg { max-width: 100%; height: auto; display: block; margin: 8px 0; }
+
+  /* Result list */
+  .scan-item { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+  .scan-item .row1 { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .scan-item .row1 .title { font-weight: 600; font-size: 14px; color: #0f172a; flex: 1; }
+  .scan-item .row1 .qty { background: #2563eb; color: #fff; font-weight: 700; font-size: 12px; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+  .scan-item .sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .scan-item .sub b { color: #0f172a; }
+  .scan-item .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; margin-top: 6px; }
+  .badge-ok { background: #dcfce7; color: #166534; }
+  .badge-warn { background: #ffedd5; color: #9a3412; }
+  .badge-danger { background: #fee2e2; color: #991b1b; }
+
+  /* Bottom action bar */
+  .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e2e8f0; padding: 10px 16px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; z-index: 40; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 12px 20px; border-radius: 999px; font-size: 14px; font-weight: 500; z-index: 100; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+
+  /* Modal */
+  .modal-bg { position: fixed; inset: 0; background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 90; }
+  .modal { background: #fff; border-radius: 16px; padding: 20px; max-width: 380px; width: 100%; }
+  .modal h3 { margin: 0 0 10px; font-size: 17px; }
+  .modal p { margin: 0 0 16px; font-size: 14px; color: #475569; }
+  .modal .actions { display: flex; gap: 8px; }
+
+  /* Heading section */
+  h2.section { font-size: 15px; font-weight: 700; margin: 18px 0 10px; color: #0f172a; display: flex; align-items: center; justify-content: space-between; }
+  h2.section .count { font-size: 12px; color: #64748b; font-weight: 500; }
+
+  /* File upload */
+  .upload-area { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 20px; text-align: center; color: #64748b; font-size: 13px; cursor: pointer; background: #f8fafc; }
+  .upload-area:hover { border-color: #2563eb; background: #eff6ff; }
+  .upload-area input { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="viewLogin" class="login-wrap">
+  <div class="login-card">
+    <h1>Expiry Checker</h1>
+    <p>Toko AM024 · Cek Expired Date & Retur</p>
+    <input id="inpUser" type="text" placeholder="Nama Crew (contoh: Andrew)" autocomplete="off" />
+    <input id="inpPass" type="password" placeholder="Password" autocomplete="off" />
+    <button class="btn-primary" onclick="doLogin()">Masuk</button>
+    <p style="font-size:11px; color:#94a3b8; margin-top:14px; text-align:center;">Login hanya untuk menandai crew yang bertugas.</p>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="viewApp" class="hidden">
+  <div class="app-header">
+    <div>
+      <div class="brand">Expiry Checker · AM024</div>
+      <div class="user-tag">Crew: <b id="lblUser">-</b></div>
+    </div>
+    <button class="logout" onclick="doLogout()">Keluar</button>
+  </div>
+
+  <div class="container">
+
+    <!-- Info rak & shelving -->
+    <div class="info-bar">
+      <span>Rak: <span class="chip" id="lblRak">-</span></span>
+      <span>Shelving: <span class="chip" id="lblShelving">-</span></span>
+    </div>
+
+    <!-- Setup rak & shelving -->
+    <div class="card" id="setupCard">
+      <div class="field">
+        <label>Nama Rak</label>
+        <input id="inpRak" type="text" placeholder="Contoh: Andrew / Rak A" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label>No. Shelving</label>
+        <input id="inpShelving" type="number" min="1" placeholder="Contoh: 1" autocomplete="off" />
+      </div>
+      <button class="btn btn-blue btn-block" onclick="setRakShelving()">Simpan & Mulai Scan</button>
+    </div>
+
+    <!-- Scanner area -->
+    <div id="scanArea" class="hidden">
+      <h2 class="section">Scan Barcode</h2>
+      <div id="reader"></div>
+      <div style="margin-top:10px; display:flex; gap:8px;">
+        <button class="btn btn-gray" style="flex:1;" onclick="stopScanner()">Matikan Kamera</button>
+        <button class="btn btn-blue" style="flex:1;" onclick="startScanner()">Nyalakan Kamera</button>
+      </div>
+
+      <!-- Manual input barcode -->
+      <div class="card" style="margin-top:14px;">
+        <div class="field">
+          <label>Input Barcode Manual (jika kamera tidak bisa)</label>
+          <input id="inpManualBarcode" type="text" inputmode="numeric" placeholder="Ketik barcode lalu Enter" onkeydown="if(event.key==='Enter')handleManualBarcode()" />
+        </div>
+        <button class="btn btn-green btn-block" onclick="handleManualBarcode()">Cari Produk</button>
+      </div>
+
+      <!-- Produk hasil scan -->
+      <div id="productResult"></div>
+
+      <!-- Daftar hasil scan -->
+      <h2 class="section">Hasil Scan <span class="count" id="countScan">0 item</span></h2>
+      <div id="scanList"></div>
+      <div id="emptyScan" class="card" style="text-align:center; color:#94a3b8; font-size:13px;">Belum ada produk discan.</div>
+    </div>
+
+    <!-- Upload JSON offline -->
+    <h2 class="section">Data Master Offline</h2>
+    <div class="card">
+      <div class="upload-area" onclick="document.getElementById('fileJson').click()">
+        <div style="font-size:20px; margin-bottom:6px;">📁</div>
+        <div><b>Upload ms_item.json</b></div>
+        <div style="margin-top:4px;">Klik untuk pilih file dari HP / Komputer</div>
+        <input type="file" id="fileJson" accept=".json,application/json" onchange="handleFileUpload(event)" />
+      </div>
+      <div style="margin-top:10px; font-size:12px; color:#64748b;">
+        Status: <span id="masterStatus">Memuat...</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom action bar -->
+  <div class="bottom-bar">
+    <button class="btn btn-orange" onclick="pindahShelving()">Shelving</button>
+    <button class="btn btn-gray" onclick="pindahRak()">Pindah Rak</button>
+    <button class="btn btn-green" onclick="openExport()">Export</button>
+  </div>
+</div>
+
+<!-- Modal konfirmasi & input -->
+<div id="modalRoot"></div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<script>
+/* =========================================================
+   KONFIGURASI
+   ========================================================= */
+const JSON_URL = 'https://raw.githubusercontent.com/CahSragen77/masterDataJson/main/ms_item.json';
+const LOGIN_CRED = { user: 'admin', pass: 'admin123' }; // hardcoded
+const BUFFER_HARI = 14;      // buffer retur
+const DEFAULT_RH = 90;       // jika r_h = 0 / kosong, anggap 90 hari
+
+/* =========================================================
+   STATE
+   ========================================================= */
+let masterData = [];
+let scanResults = [];        // { id, barcode, plu, descp, lokasi, retur_h, expDate, tarikDate, qty, rak, shelving, user }
+let currentUser = '';
+let currentRak = '';
+let currentShelving = '';
+let html5Qr = null;
+let scannerActive = false;
+let pendingProduct = null;   // produk yang sedang menunggu input exp date
+
+/* =========================================================
+   INDEXEDDB
+   ========================================================= */
+const DB_NAME = 'expiry_db';
+const DB_VER = 1;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('master')) db.createObjectStore('master');
+      if (!db.objectStoreNames.contains('scans')) db.createObjectStore('scans', { keyPath: 'id' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbPut(store, key, value) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(value, key);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbGet(store, key) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function idbGetAll(store) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function idbClear(store) {
+  const db = await openDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).clear();
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+/* =========================================================
+   TOAST & MODAL
+   ========================================================= */
+function toast(msg, ms = 2200) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+function showModal({ title, body, actions }) {
+  const root = document.getElementById('modalRoot');
+  root.innerHTML = '';
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.innerHTML = `<h3>${title}</h3><div class="modal-body">${body || ''}</div>`;
+  const act = document.createElement('div');
+  act.className = 'actions';
+  actions.forEach(a => {
+    const b = document.createElement('button');
+    b.className = 'btn ' + (a.class || 'btn-gray');
+    b.textContent = a.label;
+    b.style.flex = '1';
+    b.onclick = () => { a.onClick && a.onClick(); closeModal(); };
+    act.appendChild(b);
+  });
+  modal.appendChild(act);
+  bg.appendChild(modal);
+  root.appendChild(bg);
+  setTimeout(() => {
+    const first = modal.querySelector('input,select,textarea');
+    if (first) first.focus();
+  }, 50);
+  return modal;
+}
+function closeModal() { document.getElementById('modalRoot').innerHTML = ''; }
+
+/* =========================================================
+   LOGIN
+   ========================================================= */
+function doLogin() {
+  const u = document.getElementById('inpUser').value.trim();
+  const p = document.getElementById('inpPass').value;
+  if (!u) return toast('Nama crew wajib diisi.');
+  if (p !== LOGIN_CRED.pass) return toast('Password salah.');
+  currentUser = u;
+  localStorage.setItem('exp_user', u);
+  document.getElementById('lblUser').textContent = u;
+  document.getElementById('viewLogin').classList.add('hidden');
+  document.getElementById('viewApp').classList.remove('hidden');
+  afterLogin();
+}
+
+function doLogout() {
+  if (!confirm('Keluar dari sesi ini? Data scan yang belum diexport tetap tersimpan di perangkat.')) return;
+  localStorage.removeItem('exp_user');
+  location.reload();
+}
+
+async function afterLogin() {
+  // restore session rak/shelving kalau ada
+  const savedRak = localStorage.getItem('exp_rak');
+  const savedShv = localStorage.getItem('exp_shelving');
+  if (savedRak && savedShv) {
+    currentRak = savedRak;
+    currentShelving = savedShv;
+    document.getElementById('lblRak').textContent = savedRak;
+    document.getElementById('lblShelving').textContent = savedShv;
+    document.getElementById('setupCard').classList.add('hidden');
+    document.getElementById('scanArea').classList.remove('hidden');
+  }
+  // load data master
+  await loadMasterData();
+  // load hasil scan dari IDB
+  scanResults = (await idbGetAll('scans')) || [];
+  renderScanList();
+}
+
+/* =========================================================
+   DATA MASTER
+   ========================================================= */
+async function loadMasterData() {
+  const status = document.getElementById('masterStatus');
+  status.textContent = 'Memuat data master...';
+
+  // 1) coba dari cache IDB dulu supaya cepat
+  const cached = await idbGet('master', 'all');
+  if (cached && cached.length) {
+    masterData = cached;
+    status.textContent = `OK · ${cached.length.toLocaleString('id-ID')} item (cache lokal)`;
+  }
+
+  // 2) coba network (kalau online, update)
+  try {
+    const res = await fetch(JSON_URL, { cache: 'no-cache' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (Array.isArray(data)) {
+      masterData = data;
+      await idbPut('master', 'all', data);
+      status.textContent = `OK · ${data.length.toLocaleString('id-ID')} item (online)`;
+    }
+  } catch (e) {
+    if (masterData.length) {
+      status.textContent = `Offline · pakai cache (${masterData.length.toLocaleString('id-ID')} item)`;
+    } else {
+      status.textContent = 'Offline · belum ada data. Upload file JSON dulu.';
+    }
+  }
+}
+
+async function handleFileUpload(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!Array.isArray(data)) throw new Error('JSON harus array');
+    masterData = data;
+    await idbPut('master', 'all', data);
+    document.getElementById('masterStatus').textContent = `OK · ${data.length.toLocaleString('id-ID')} item (upload lokal)`;
+    toast('Data master berhasil dimuat.');
+  } catch (e) {
+    toast('File JSON tidak valid.');
+  }
+  ev.target.value = '';
+}
+
+/* =========================================================
+   SETUP RAK & SHELVING
+   ========================================================= */
+function setRakShelving() {
+  const rak = document.getElementById('inpRak').value.trim();
+  const shv = document.getElementById('inpShelving').value.trim();
+  if (!rak) return toast('Nama rak wajib diisi.');
+  if (!shv || isNaN(parseInt(shv))) return toast('No. shelving wajib diisi angka.');
+  currentRak = rak;
+  currentShelving = shv;
+  localStorage.setItem('exp_rak', rak);
+  localStorage.setItem('exp_shelving', shv);
+  document.getElementById('lblRak').textContent = rak;
+  document.getElementById('lblShelving').textContent = shv;
+  document.getElementById('setupCard').classList.add('hidden');
+  document.getElementById('scanArea').classList.remove('hidden');
+  toast('Rak & shelving disimpan.');
+}
+
+function pindahShelving() {
+  showModal({
+    title: 'Pindah Shelving',
+    body: `<p>Masukkan no. shelving berikutnya (rak tetap: <b>${escapeHtml(currentRak)}</b>).</p>
+           <input id="modalShv" type="number" min="1" placeholder="No shelving" style="width:100%;padding:11px 13px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;" />`,
+    actions: [
+      { label: 'Batal', class: 'btn-gray' },
+      { label: 'Pindah', class: 'btn-orange', onClick: () => {
+          const v = document.getElementById('modalShv').value.trim();
+          if (!v) return toast('Isi no shelving.');
+          currentShelving = v;
+          localStorage.setItem('exp_shelving', v);
+          document.getElementById('lblShelving').textContent = v;
+          toast('Pindah ke shelving ' + v);
+        } }
+    ]
+  });
+}
+
+function pindahRak() {
+  showModal({
+    title: 'Pindah Rak',
+    body: `<p>Masukkan nama rak baru.</p>
+           <input id="modalRak" type="text" placeholder="Nama rak" style="width:100%;padding:11px 13px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;margin-bottom:8px;" />
+           <input id="modalShv2" type="number" min="1" placeholder="No shelving awal" style="width:100%;padding:11px 13px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;" />`,
+    actions: [
+      { label: 'Batal', class: 'btn-gray' },
+      { label: 'Pindah', class: 'btn-orange', onClick: () => {
+          const r = document.getElementById('modalRak').value.trim();
+          const s = document.getElementById('modalShv2').value.trim();
+          if (!r || !s) return toast('Isi rak & shelving.');
+          currentRak = r;
+          currentShelving = s;
+          localStorage.setItem('exp_rak', r);
+          localStorage.setItem('exp_shelving', s);
+          document.getElementById('lblRak').textContent = r;
+          document.getElementById('lblShelving').textContent = s;
+          toast('Pindah ke rak ' + r + ' shelving ' + s);
+        } }
+    ]
+  });
+}
+
+/* =========================================================
+   SCANNER
+   ========================================================= */
+function startScanner() {
+  if (scannerActive) return;
+  const readerEl = document.getElementById('reader');
+  if (!html5Qr) {
+    html5Qr = new Html5Qrcode('reader', { verbose: false });
+  }
+  html5Qr.start(
+    { facingMode: 'environment' },
+    { fps: 12, qrbox: { width: 260, height: 160 }, aspectRatio: 1.5 },
+    (decoded) => {
+      if (!scannerActive) return;
+      handleBarcode(decoded);
+    },
+    () => {} // error callback diabaikan
+  ).then(() => {
+    scannerActive = true;
+    readerEl.classList.remove('hidden');
+  }).catch((err) => {
+    toast('Tidak bisa akses kamera. Gunakan input manual.');
+    console.error(err);
+  });
+}
+
+function stopScanner() {
+  if (!html5Qr || !scannerActive) return;
+  html5Qr.stop().then(() => { scannerActive = false; }).catch(() => {});
+}
+
+function handleManualBarcode() {
+  const v = document.getElementById('inpManualBarcode').value.trim();
+  if (!v) return toast('Isi barcode.');
+  handleBarcode(v);
+  document.getElementById('inpManualBarcode').value = '';
+}
+
+/* =========================================================
+   HANDLE BARCODE -> CARI PRODUK -> FORM INPUT
+   ========================================================= */
+function handleBarcode(barcodeRaw) {
+  const barcode = String(barcodeRaw).trim();
+  const product = masterData.find(p => String(p.barcode).trim() === barcode);
+  if (!product) {
+    showProductNotFound(barcode);
+    return;
+  }
+  openInputForm(product, barcode);
+}
+
+function showProductNotFound(barcode) {
+  document.getElementById('productResult').innerHTML = `
+    <div class="result-card danger">
+      <div class="prod-name">Produk tidak ditemukan</div>
+      <div class="meta">Barcode: <b>${escapeHtml(barcode)}</b></div>
+      <div class="meta" style="color:#991b1b; margin-top:6px;">Pastikan data master ter-update, atau upload file JSON terbaru.</div>
+    </div>`;
+  toast('Barcode tidak ada di master data.');
+}
+
+/* =========================================================
+   FORM INPUT QTY + EXP DATE
+   ========================================================= */
+function openInputForm(product, barcodeScanned) {
+  // cek duplikat (barcode+plu+rak+shelving sama)
+  const duplicate = scanResults.find(r =>
+    String(r.barcode) === String(product.barcode) &&
+    String(r.plu) === String(product.plu) &&
+    r.rak === currentRak &&
+    String(r.shelving) === String(currentShelving)
+  );
+
+  // R_H & hitung tanggal tarik
+  const rhNum = parseRH(product.retur_h);
+  const rhLabel = product.retur_h || '-';
+
+  // Render kartu produk + form
+  const wrap = document.getElementById('productResult');
+  wrap.innerHTML = `
+    <div class="result-card" id="formCard">
+      <div class="prod-name">${escapeHtml(product.descp)}</div>
+      <div class="meta">PLU: <b>${escapeHtml(product.plu)}</b> · Barcode: <b>${escapeHtml(product.barcode)}</b></div>
+      <div class="meta">Lokasi: <b>${escapeHtml(product.lokasi || '-')}</b> · R_H: <b>${escapeHtml(rhLabel)}</b> (dipakai: ${rhNum} hari)</div>
+      <svg id="svgBarcode"></svg>
+
+      ${duplicate ? `<div class="badge badge-warn" style="display:inline-block; margin-bottom:10px;">⚠ Produk ini sudah discan di rak ${escapeHtml(currentRak)} shelving ${escapeHtml(currentShelving)}. Akan dicatat sebagai baris baru (indikasi rak tidak konsisten).</div>` : ''}
+
+      <div class="field">
+        <label>Qty</label>
+        <input id="inpQty" type="number" min="1" value="1" inputmode="numeric" />
+      </div>
+      <div class="field">
+        <label>Tanggal Expired (dari kemasan)</label>
+        <input id="inpExp" type="date" />
+      </div>
+      <div class="field" style="margin-bottom:6px;">
+        <label>Perkiraan Tanggal Tarik (otomatis)</label>
+        <div id="lblTarik" style="padding:11px 13px; background:#f1f5f9; border-radius:10px; font-weight:600; color:#0f172a;">— isi tanggal expired dulu —</div>
+      </div>
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="btn btn-gray" onclick="cancelInput()">Batal</button>
+        <button class="btn btn-green" onclick="confirmInput('${escapeJs(product.barcode)}', '${escapeJs(product.plu)}', ${rhNum})">Simpan</button>
+      </div>
+    </div>
+  `;
+
+  // render barcode visual
+  try {
+    JsBarcode('#svgBarcode', String(product.barcode), {
+      format: 'CODE128', width: 2, height: 55, displayValue: true, fontSize: 14, margin: 4
+    });
+  } catch (e) { /* ignore */ }
+
+  // hitung otomatis saat exp date diubah
+  const inpExp = document.getElementById('inpExp');
+  const lblTarik = document.getElementById('lblTarik');
+  const updateTarik = () => {
+    if (!inpExp.value) { lblTarik.textContent = '— isi tanggal expired dulu —'; return; }
+    const tglTarik = hitungTanggalTarik(inpExp.value, rhNum);
+    if (!tglTarik) { lblTarik.textContent = 'Tidak dihitung'; return; }
+    const status = cekStatusTarik(tglTarik);
+    lblTarik.textContent = `${formatTanggal(tglTarik)} (${status.label})`;
+    lblTarik.style.color = status.color;
+  };
+  inpExp.addEventListener('change', updateTarik);
+  updateTarik();
+
+  // simpan produk pending
+  pendingProduct = product;
+
+  // scroll ke form
+  setTimeout(() => {
+    document.getElementById('formCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('inpQty').focus();
+  }, 120);
+}
+
+function cancelInput() {
+  pendingProduct = null;
+  document.getElementById('productResult').innerHTML = '';
+}
+
+function confirmInput(barcode, plu, rhNum) {
+  const qty = parseInt(document.getElementById('inpQty').value, 10);
+  const expDate = document.getElementById('inpExp').value;
+  if (!qty || qty < 1) return toast('Qty minimal 1.');
+  if (!expDate) return toast('Tanggal expired wajib diisi.');
+
+  const tarikDate = hitungTanggalTarik(expDate, rhNum);
+  const prod = pendingProduct;
+
+  const record = {
+    id: 's_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+    barcode: String(prod.barcode),
+    plu: String(prod.plu),
+    descp: prod.descp,
+    lokasi: prod.lokasi || '',
+    retur_h: prod.retur_h || '',
+    rh_num: rhNum,
+    expDate,
+    tarikDate: tarikDate || '',
+    qty,
+    rak: currentRak,
+    shelving: String(currentShelving),
+    user: currentUser,
+    createdAt: new Date().toISOString()
+  };
+
+  scanResults.unshift(record);
+  idbPut('scans', record.id, record).catch(() => {});
+  renderScanList();
+  cancelInput();
+  toast('Tersimpan: ' + prod.descp.slice(0, 32) + (prod.descp.length > 32 ? '…' : ''));
+}
+
+/* =========================================================
+   RENDER DAFTAR SCAN
+   ========================================================= */
+function renderScanList() {
+  const list = document.getElementById('scanList');
+  const empty = document.getElementById('emptyScan');
+  const count = document.getElementById('countScan');
+
+  count.textContent = scanResults.length + ' item';
+  if (!scanResults.length) {
+    empty.classList.remove('hidden');
+    list.innerHTML = '';
+    return;
+  }
+  empty.classList.add('hidden');
+
+  list.innerHTML = scanResults.map(r => {
+    const status = r.tarikDate ? cekStatusTarik(r.tarikDate) : { label: 'Tanpa R_H', cls: 'badge-warn' };
+    return `
+      <div class="scan-item">
+        <div class="row1">
+          <div class="title">${escapeHtml(r.descp)}</div>
+          <div class="qty">x${r.qty}</div>
+        </div>
+        <div class="sub">Barcode: <b>${escapeHtml(r.barcode)}</b> · PLU: <b>${escapeHtml(r.plu)}</b></div>
+        <div class="sub">Rak: <b>${escapeHtml(r.rak)}</b> · Shelving: <b>${escapeHtml(r.shelving)}</b></div>
+        <div class="sub">Exp: <b>${formatTanggal(r.expDate)}</b> · Tarik: <b>${r.tarikDate ? formatTanggal(r.tarikDate) : '-'}</b></div>
+        <div class="sub">R_H: <b>${escapeHtml(r.retur_h || '-')}</b></div>
+        <span class="badge ${status.cls}">${status.label}</span>
+        <div style="margin-top:8px; display:flex; gap:6px;">
+          <button class="btn btn-gray" style="padding:6px 10px; font-size:12px;" onclick="editRecord('${r.id}')">Edit</button>
+          <button class="btn btn-red" style="padding:6px 10px; font-size:12px;" onclick="deleteRecord('${r.id}')">Hapus</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function deleteRecord(id) {
+  if (!confirm('Hapus data ini?')) return;
+  scanResults = scanResults.filter(r => r.id !== id);
+  idbClear('scans').then(async () => {
+    for (const r of scanResults) await idbPut('scans', r.id, r);
+  });
+  renderScanList();
+}
+
+function editRecord(id) {
+  const r = scanResults.find(x => x.id === id);
+  if (!r) return;
+  showModal({
+    title: 'Edit Data',
+    body: `
+      <div style="margin-bottom:8px;"><label style="font-size:12px;font-weight:600;color:#475569;">Qty</label>
+        <input id="editQty" type="number" min="1" value="${r.qty}" style="width:100%;padding:11px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;" /></div>
+      <div><label style="font-size:12px;font-weight:600;color:#475569;">Tanggal Expired</label>
+        <input id="editExp" type="date" value="${r.expDate}" style="width:100%;padding:11px;border:1px solid #e2e8f0;border-radius:10px;font-size:15px;" /></div>
+    `,
+    actions: [
+      { label: 'Batal', class: 'btn-gray' },
+      { label: 'Simpan', class: 'btn-green', onClick: async () => {
+          const q = parseInt(document.getElementById('editQty').value, 10);
+          const e = document.getElementById('editExp').value;
+          if (!q || q < 1) return toast('Qty minimal 1.');
+          if (!e) return toast('Exp date wajib diisi.');
+          r.qty = q;
+          r.expDate = e;
+          r.tarikDate = hitungTanggalTarik(e, r.rh_num) || '';
+          await idbPut('scans', r.id, r);
+          renderScanList();
+          toast('Data diperbarui.');
+        } }
+    ]
+  });
+}
+
+/* =========================================================
+   LOGIKA TANGGAL & STATUS
+   ========================================================= */
+function parseRH(returH) {
+  // contoh: "R_H-90 DAYS", "RH-90", "90", 0, null
+  if (returH === null || returH === undefined) return DEFAULT_RH;
+  const s = String(returH);
+  const m = s.match(/(\d+)/);
+  if (!m) return DEFAULT_RH;
+  const n = parseInt(m[1], 10);
+  return n > 0 ? n : DEFAULT_RH; // 0 / kosong = 90 hari
+}
+
+function hitungTanggalTarik(expDateStr, rhNum) {
+  if (!expDateStr) return null;
+  if (!rhNum) rhNum = DEFAULT_RH;
+  const total = rhNum + BUFFER_HARI;
+  const d = new Date(expDateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() - total);
+  return d.toISOString().slice(0, 10);
+}
+
+function cekStatusTarik(tglTarik) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const t = new Date(tglTarik + 'T00:00:00');
+  const diff = Math.round((t - today) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return { label: `LEWAT ${Math.abs(diff)} hari · SEGERA RETUR`, cls: 'badge-danger', color: '#991b1b' };
+  if (diff <= 30) return { label: `Retur dalam ${diff} hari`, cls: 'badge-warn', color: '#9a3412' };
+  return { label: `Aman (${diff} hari lagi)`, cls: 'badge-ok', color: '#166534' };
+}
+
+function formatTanggal(iso) {
+  if (!iso) return '-';
+  const d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+/* =========================================================
+   EXPORT
+   ========================================================= */
+function openExport() {
+  if (!scanResults.length) return toast('Belum ada data untuk diexport.');
+  showModal({
+    title: 'Export Data',
+    body: `<p>Pilih format export (${scanResults.length} item dari semua rak).</p>`,
+    actions: [
+      { label: 'Excel', class: 'btn-green', onClick: exportExcel },
+      { label: 'PDF', class: 'btn-red', onClick: exportPDF }
+    ]
+  });
+}
+
+function exportExcel() {
+  const rows = scanResults.map((r, i) => ({
+    No: i + 1,
+    Barcode: r.barcode,
+    PLU: r.plu,
+    Deskripsi: r.descp,
+    Rak: r.rak,
+    Shelving: r.shelving,
+    Qty: r.qty,
+    'Retur Hari': r.retur_h || '-',
+    'RH Aktif': r.rh_num,
+    'Exp Date': r.expDate,
+    'Tgl Tarik': r.tarikDate || '-',
+    Status: r.tarikDate ? cekStatusTarik(r.tarikDate).label : 'Tanpa R_H',
+    Crew: r.user,
+    'Waktu Scan': r.createdAt
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'ExpiryCheck');
+  XLSX.writeFile(wb, `expiry_${sanitize(currentRak || 'all')}_${Date.now()}.xlsx`);
+  toast('Excel terunduh.');
+}
+
+async function exportPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const pageW = 210, margin = 12;
+  let y = 14;
+
+  const groupBy = {};
+  scanResults.forEach(r => {
+    const key = `${r.rak}__${r.shelving}`;
+    if (!groupBy[key]) groupBy[key] = { rak: r.rak, shelving: r.shelving, items: [] };
+    groupBy[key].items.push(r);
+  });
+
+  // Header global
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('LAPORAN CEK EXPIRED & RETUR', pageW / 2, y, { align: 'center' });
+  y += 6;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Toko AM024 · Crew: ${currentUser} · Dicetak: ${new Date().toLocaleString('id-ID')}`, pageW / 2, y, { align: 'center' });
+  y += 8;
+
+  for (const key of Object.keys(groupBy)) {
+    const grp = groupBy[key];
+    if (y > 250) { doc.addPage(); y = 14; }
+
+    // Sub-header rak
+    doc.setFillColor(37, 99, 235);
+    doc.setTextColor(255, 255, 255);
+    doc.roundedRect(margin, y, pageW - margin * 2, 7, 1.5, 1.5, 'F');
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Rak: ${grp.rak}  ·  Shelving: ${grp.shelving}`, margin + 3, y + 5);
+    y += 10;
+
+    // Tabel header
+    doc.setTextColor(15, 23, 42);
+    doc.setFillColor(241, 245, 249);
+    doc.rect(margin, y, pageW - margin * 2, 6, 'F');
+    doc.setFontSize(8);
+    doc.text('No', margin + 2, y + 4);
+    doc.text('Barcode Visual', margin + 10, y + 4);
+    doc.text('PLU', margin + 52, y + 4);
+    doc.text('Deskripsi', margin + 74, y + 4);
+    doc.text('Qty', margin + 140, y + 4);
+    doc.text('Exp', margin + 152, y + 4);
+    doc.text('Tarik', margin + 172, y + 4);
+    y += 6;
+
+    let idx = 1;
+    for (const r of grp.items) {
+      if (y > 265) { doc.addPage(); y = 14; }
+
+      // barcode visual
+      try {
+        const canvas = document.createElement('canvas');
+        JsBarcode(canvas, r.barcode, { format: 'CODE128', width: 1.2, height: 28, displayValue: true, fontSize: 9, margin: 1 });
+        const img = canvas.toDataURL('image/png');
+        doc.addImage(img, 'PNG', margin + 8, y + 1, 40, 12);
+      } catch (e) { /* ignore */ }
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(String(idx), margin + 2, y + 6);
+      doc.text(r.plu, margin + 52, y + 6);
+      const descLines = doc.splitTextToSize(r.descp, 62);
+      doc.text(descLines, margin + 74, y + 4);
+      doc.text(String(r.qty), margin + 140, y + 6);
+      doc.text(formatTanggal(r.expDate), margin + 152, y + 6);
+      doc.text(r.tarikDate ? formatTanggal(r.tarikDate) : '-', margin + 172, y + 6);
+
+      const lineH = Math.max(13, descLines.length * 4 + 4);
+      y += lineH;
+      doc.setDrawColor(226, 232, 240);
+      doc.line(margin, y, pageW - margin, y);
+      idx++;
+    }
+
+    // Tanda tangan per rak
+    y += 4;
+    if (y > 240) { doc.addPage(); y = 14; }
+    doc.setFontSize(9);
+    doc.text(`Rak: ${grp.rak}  ·  Shelving: ${grp.shelving}`, margin, y);
+    y += 4;
+    doc.text('Crew:', margin, y + 4);
+    doc.text(currentUser, margin + 16, y + 4);
+    doc.text('TTD:', margin + 70, y + 4);
+    doc.line(margin + 82, y + 5, margin + 130, y + 5);
+    y += 14;
+  }
+
+  doc.save(`laporan_expiry_${sanitize(currentUser)}_${Date.now()}.pdf`);
+  toast('PDF terunduh.');
+}
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function escapeJs(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+function sanitize(s) { return String(s).replace(/[^a-z0-9_-]/gi, '_'); }
+
+/* =========================================================
+   INIT
+   ========================================================= */
+window.addEventListener('load', () => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+  }
+  const savedUser = localStorage.getItem('exp_user');
+  if (savedUser) {
+    currentUser = savedUser;
+    document.getElementById('lblUser').textContent = savedUser;
+    document.getElementById('viewLogin').classList.add('hidden');
+    document.getElementById('viewApp').classList.remove('hidden');
+    afterLogin();
+  }
+  // Enter di password = login
+  document.getElementById('inpPass').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doLogin();
+  });
+  // Auto-start scanner kalau scanArea tampil
+  const obs = new MutationObserver(() => {
+    if (!document.getElementById('scanArea').classList.contains('hidden') && !scannerActive) {
+      setTimeout(startScanner, 300);
+    }
+  });
+  obs.observe(document.getElementById('scanArea'), { attributes: true, attributeFilter: ['class'] });
+});
+</script>
+</body>
+</html>
